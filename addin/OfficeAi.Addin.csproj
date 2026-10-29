@@ -1,0 +1,56 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+    <Platforms>x64</Platforms>
+    <AssemblyName>OfficeAi.Addin</AssemblyName>
+    <RootNamespace>OfficeAi</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <ComVisible>true</ComVisible>
+    <UseWindowsForms>true</UseWindowsForms>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>0.5.2.0</FileVersion>
+    <Product>Office AI Assistant</Product>
+    <CodePage>65001</CodePage>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <DebugType>none</DebugType>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Web.Extensions" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
+    <!-- Office PIA：引用本机 GAC 里的实体文件（15.0.0.0 兼容 Office 2013 及以上） -->
+    <Reference Include="Office">
+      <HintPath>C:\Windows\assembly\GAC_MSIL\office\15.0.0.0__71e9bce111e9429c\OFFICE.DLL</HintPath>
+      <EmbedInteropTypes>false</EmbedInteropTypes>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4258.31" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Ribbon.xml" LogicalName="OfficeAi.Ribbon.xml" />
+    <EmbeddedResource Include="icons\*.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="ui\**\*.*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup><Compile Remove="FormatTool.cs"/><Compile Include="..\shared\VbaFormatPlan.cs" Link="VbaFormatPlan.cs"/></ItemGroup>
+</Project>

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Office AI 助手</title>
+  <!-- ★ 最早的一道拖拽防线：这段内联脚本先于 style.css / app.js 执行
+       （app.js 在 </body> 前，那时才挂 document 级监听）。
+       拖拽家族事件在捕获阶段直接 preventDefault，让原生拖拽根本不成立——
+       在 Office 任务窗格里，原生拖拽会走 OLE DoDragDrop 模态循环，
+       重入 Word 消息泵 → wwlib.dll 0xc0000005 闪退（报告 3.5）。
+       这里只拦不记日志（此刻 bridge 还没就绪），也不 stopPropagation，
+       好让 app.js 的拦截器照样把证据写进 addin.log。
+       保留这一层的原因：万一 app.js 将来被改坏、没能执行，Word 也不会被拖拽带崩。 -->
+  <script>
+    (function () {
+      ['dragstart', 'drag', 'dragenter', 'dragover', 'drop', 'dragend'].forEach(function (t) {
+        document.addEventListener(t, function (e) {
+          if (t !== 'dragend') e.preventDefault();  // dragend 已不可取消，拦也没用
+        }, true);
+      });
+    })();
+  </script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-apply-theme>
+  <header class="hdr">
+    <div class="brand">
+      <span class="logo">✦</span>
+      <span class="name">OfficeAI</span>
+      <span class="host-tag" id="hostTag"></span>
+    </div>
+    <div class="hdr-right">
+      <button id="btnNewChat" class="icon-btn" title="开始新对话" aria-label="开始新对话">＋</button>
+      <button id="btnTheme" class="icon-btn" title="切换深浅色主题">🌓</button>
+      <button id="btnRefresh" class="icon-btn" title="刷新文档内容">⟳</button>
+      <button id="btnSettings" class="icon-btn" title="设置">⚙</button>
+    </div>
+  </header>
+
+  <!-- 主标签 -->
+  <div class="maintabs">
+    <button data-tab="chat" class="maintab active">提问 · 写作</button>
+    <button data-tab="images" class="maintab">图片</button>
+  </div>
+
+  <!-- ============ 聊天页 ============ -->
+  <section id="tab-chat" class="tabpage">
+    <div class="segbar">
+      <div class="seg" id="segMode">
+        <button data-mode="ask" class="seg-item active">提问</button>
+        <button data-mode="write" class="seg-item">写作</button>
+      </div>
+      <span class="hint" id="modeHint">只回答问题，不改动文档</span>
+    </div>
+
+    <div id="selbar" class="selbar hidden">
+      <span class="sel-label">已锁定选区</span>
+      <span class="sel-info" id="selInfo"></span>
+      <button id="btnClearSel" class="link-btn">取消</button>
+    </div>
+
+    <main id="messages" class="messages" aria-label="对话内容">
+      <div class="msg assistant">
+        <div class="bubble welcome">
+          <div class="eyebrow">你的文档，随时可改</div>
+          <h2>说说你想怎么改。</h2>
+          <p class="muted">文字和格式都可以直接说。先核对方案，再确认执行。</p>
+          <div class="quick-prompts">
+            <button data-prompt="帮我润色当前文档，保留事实和原意，表达自然一些。">润色原文 <span>↗</span></button>
+            <button data-prompt="把当前选中的内容写得更简洁，保留关键信息。">精简选中段落 <span>↗</span></button>
+            <button data-prompt="检查当前文档中的语病和前后不一致，逐项给出修改方案。">检查文档 <span>↗</span></button>
+            <button data-prompt="将当前选中的内容设为宋体小四、1.5 倍行距，用 VBA 修改格式，不改文字。">用 VBA 改选区格式 <span>↗</span></button>
+          </div>
+          <p class="connection muted"><span class="status-dot"></span><span id="hostInfo" role="status">正在连接 Office…</span></p>
+        </div>
+      </div>
+    </main>
+
+    <footer class="composer">
+      <div class="ctxline">
+        <label class="chk"><input type="checkbox" id="chkCtx" checked> 带文档内容</label>
+        <span class="sep">·</span>
+        <button id="btnUseSel" class="link-btn">用选区</button>
+        <span class="sep">·</span>
+        <button id="btnFind" class="link-btn">查找替换</button>
+        <button id="btnFormatAll" class="link-btn" title="直接用 VBA 应用全文商务规范，保留标题层级；Ctrl+Z 可撤销">一键全文格式</button>
+        <span id="ctxStat" class="muted"></span>
+        <button id="btnIma" class="link-btn right" title="搜索 ima 资料库">ima</button>
+        <button id="btnPpt" class="link-btn right" title="由大纲生成 PPT">生成 PPT</button>
+      </div>
+      <div id="imaRefs" class="ima-refs hidden" role="status"></div>
+      <div class="inputrow">
+        <textarea id="input" rows="1" placeholder="输入问题，Enter 发送，Shift+Enter 换行"></textarea>
+        <button id="btnStop" class="stop hidden" title="停止生成" aria-label="停止生成">■</button>
+        <button id="btnSend" class="send" title="发送">➤</button>
+      </div>
+      <div id="requestStat" class="request-stat" role="status">Enter 发送 · Shift+Enter 换行</div>
+      <div class="findbar hidden" id="findbar">
+        <input type="text" id="findText" placeholder="查找内容">
+        <input type="text" id="replText" placeholder="替换为">
+        <label class="chk"><input type="checkbox" id="findAll" checked> 全部</label>
+        <button id="btnFindRepl" class="mini">查找替换</button>
+      </div>
+    </footer>
+  </section>
+
+  <!-- ============ 图片页 ============ -->
+  <section id="tab-images" class="tabpage hidden">
+    <div class="imgbar">
+      <button id="btnExtract" class="primary small">抓取文档图片</button>
+      <button id="btnExportAll" class="secondary small" disabled>批量导出…</button>
+      <span id="imgStat" class="muted small"></span>
+    </div>
+    <div id="imgGrid" class="imggrid">
+      <div class="imgempty">点「抓取文档图片」提取当前文档里的所有内嵌图片。<br>
+        <span class="muted small">需先保存文档。卡片上可直接 <b>插入到光标</b> / <b>复制图片</b>；右键可另存为、用其他程序打开。</span></div>
+    </div>
+  </section>
+
+  <!-- ============ 设置抽屉 ============ -->
+  <div id="settings" class="drawer hidden">
+    <div class="drawer-hdr">
+      <span>设置</span>
+      <button id="btnCloseSettings" class="icon-btn">✕</button>
+    </div>
+    <div class="drawer-body">
+      <div class="sec-title">AI 连接 · 兼容 OpenAI 接口</div>
+      <label>API Key</label>
+      <input type="password" id="apiKey" placeholder="sk-...">
+      <label>接口地址</label>
+      <input type="text" id="baseUrl" value="https://api.deepseek.com">
+      <label>模型</label>
+      <input type="text" id="model" value="deepseek-chat">
+
+      <div class="sec-title">文档读取</div>
+      <label class="chkrow"><input type="checkbox" id="autoRead"> 打开侧边栏时自动读取全文</label>
+      <label>自动刷新间隔（分钟，0 = 不定时刷新）</label>
+      <input type="number" id="autoReadIntervalMin" min="0" step="1" value="0">
+
+      <div class="sec-title">写入方式</div>
+      <select id="method">
+        <option value="type">模拟输入（推荐）</option>
+        <option value="vba">VBA 代码</option>
+      </select>
+
+      <div class="sec-title">ima 资料库</div>
+      <label>Client ID</label>
+      <input type="text" id="imaClientId" placeholder="在 ima.qq.com/agent-interface 领取">
+      <label>API Key</label>
+      <input type="password" id="imaApiKey" placeholder="ima openapi apikey">
+      <button id="btnImaTest" class="secondary small">测试 ima 连接</button>
+      <span id="imaStat" class="muted small"></span>
+
+      <button id="btnSaveSettings" class="primary">保存设置</button><span id="saveStat" class="muted small" role="status"></span>
+      <p class="muted small">设置保存在本机。请求时，密钥及你选择的文档上下文会发送至所配置的接口服务。</p>
+    </div>
+  </div>
+
+  <!-- ============ PPT 抽屉 ============ -->
+  <div id="pptpane" class="drawer hidden">
+    <div class="drawer-hdr">
+      <span>由大纲生成 PPT</span>
+      <button id="btnClosePpt" class="icon-btn">✕</button>
+    </div>
+    <div class="drawer-body">
+      <p class="muted small">按下面的格式写大纲，生成后会自动打开（默认存桌面）。</p>
+      <textarea id="outline" rows="14" spellcheck="false">@title 演示文稿标题
+@subtitle 副标题
+@theme  tech-cyan
+
+# 第一页标题
+- 要点一
+- 要点二
+  - 子要点（前面空两格）
+
+# 第二页标题
+- 要点一</textarea>
+      <label>配色</label>
+      <select id="pptheme">
+        <option value="tech-cyan">科技青（深色）</option>
+        <option value="business-blue">商务蓝（深色）</option>
+        <option value="forest-green">森林绿（深色）</option>
+        <option value="warm-amber">暖琥珀（暖色）</option>
+      </select>
+      <button id="btnGenPpt" class="primary">生成 PPT</button>
+      <span id="pptStat" class="muted small"></span>
+      <button id="btnOutlineFromDoc" class="link-btn">用当前文档内容起草大纲</button>
+    </div>
+  </div>
+
+  <!-- ============ ima 抽屉 ============ -->
+  <div id="imapane" class="drawer hidden">
+    <div class="drawer-hdr">
+      <span>ima 资料库</span>
+      <button id="btnCloseIma" class="icon-btn">✕</button>
+    </div>
+    <div class="drawer-body">
+      <label>知识库</label>
+      <select id="kbSelect"><option value="">（先加载知识库）</option></select>
+      <button id="btnLoadKb" class="secondary small">加载知识库列表</button>
+      <label>搜索关键词</label>
+      <input type="text" id="kbQuery" placeholder="搜索资料名关键词，如：元衍">
+      <p class="muted small">可以直接提问：“参考 ima 小说库里的《元衍纪·设定》，检查这段”。助手会自动搜索并显示引用来源，也可以在这里手动选择资料。</p>
+      <button id="btnKbSearch" class="primary small">搜索</button>
+      <div id="kbResults" class="kb-results"></div>
+    </div>
+  </div>
+
+  <script src="ima-auto.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+# ---- 开发资料（体积巨大，且含调试日志/崩溃转储/测试脚本，绝不入库）----
+_dev/
+*.log
+crash-dump*.dmp
+*.dmp
+
+# ---- 编译中间产物 ----
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.pdb
+*.cache
+
+# ---- PPT 引擎的独立 Python 环境（约 40 MB，只进 Release 安装包）----
+engine/venv/
+
+# ---- 交付目录的二进制（由 Release 的 zip 提供，仓库只放源码）----
+build/
+
+# ---- 本地设置 / 临时文件 ----
+*.tmp
+*.bak
+Thumbs.db
+desktop.ini

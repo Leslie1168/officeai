@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<customUI xmlns="http://schemas.microsoft.com/office/2009/07/customui">
+  <ribbon>
+    <tabs>
+      <tab id="OfficeAiTab" label="AI 助手">
+        <group id="grpPane" label="侧边栏">
+          <button id="btnTogglePane"
+                  label="打开 AI 助手"
+                  size="large"
+                  imageMso="HappyFace"
+                  screentip="打开或收起 AI 助手侧边栏"
+                  supertip="在右侧停靠出 AI 助手面板。提问模式下只回答问题、不改文档；写作模式下生成内容后先预览，点「确认导入」才写入。"
+                  onAction="OnActionTogglePane"/>
+        </group>
+        <group id="grpHelp" label="帮助">
+          <button id="btnAboutAi"
+                  label="关于"
+                  size="large"
+                  imageMso="HappyFace"
+                  screentip="关于与自检"
+                  supertip="显示版本、当前宿主程序、任务窗格工厂是否就绪。侧边栏打不开时先看这里。"
+                  onAction="OnActionAbout"/>
+        </group>
+      </tab>
+    </tabs>
+  </ribbon>
+</customUI>

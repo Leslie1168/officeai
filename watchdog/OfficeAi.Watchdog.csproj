@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    OfficeAi.Watchdog —— 进程外崩溃看门狗（迷你调试器）
+
+    为什么是 .NET Framework 4.8：
+      addin 本体是 net48 的 Office COM 加载项，看门狗由它 Process.Start 拉起，
+      保持同一运行时（本机必然已装 .NET Framework 4.8）可以省掉一切安装前提。
+    为什么零 NuGet：
+      DbgHelp / kernel32 / psapi 全部走 DllImport。任何包引用都会引入还原失败风险，
+      而这是个"必须在崩溃当天一定能跑起来"的取证工具。
+    为什么 x64：
+      Word 16 是 64 位进程；调试器与调试目标必须同位数（否则 DebugActiveProcess 直接失败）。
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+    <Platforms>x64</Platforms>
+    <AssemblyName>OfficeAi.Watchdog</AssemblyName>
+    <RootNamespace>OfficeAi.Watchdog</RootNamespace>
+    <!-- 不用 record / init / nullable 等需要额外运行时类型的新语法，net48 上最稳 -->
+    <LangVersion>7.3</LangVersion>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AssemblyTitle>Office AI Assistant Watchdog</AssemblyTitle>
+    <Product>Office AI Assistant</Product>
+    <Company>OfficeAi</Company>
+    <Description>进程外崩溃看门狗：attach 到 WINWORD.EXE，first-chance 异常时写全内存 minidump 并给出模块名+基址+RVA</Description>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <!-- 产物就在 bin\Release\OfficeAi.Watchdog.exe，不带 net48 子目录，方便部署脚本按固定路径拷贝 -->
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <DebugType>none</DebugType>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- DbgHelp 需要 DbgCore；System.Core 提供 LINQ/Concurrent 集合 -->
+    <Reference Include="System.Core" />
+  </ItemGroup>
+
+</Project>

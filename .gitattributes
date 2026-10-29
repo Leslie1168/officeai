@@ -1,0 +1,15 @@
+# .bat 必须保持 CRLF，否则 cmd 解析会出问题
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# C# / 前端按 LF 归一
+*.cs   text eol=lf
+*.js   text eol=lf
+*.css  text eol=lf
+*.html text eol=lf
+*.md   text eol=lf
+
+# 二进制不要自动转换
+*.dll binary
+*.exe binary
+*.png binary
