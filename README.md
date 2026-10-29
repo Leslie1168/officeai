@@ -29,6 +29,7 @@
 | 操作系统 | Windows 10 / 11（x64） |
 | Office | Microsoft Office 2013 及以上（Word / Excel / PowerPoint 桌面版） |
 | 运行时 | .NET Framework 4.8（Win10 1903+ / Win11 自带） |
+| Python | **不需要装**。Release 包内已自带便携版 Python 3.12.10 + 依赖（约 52 MB） |
 | WebView2 | Microsoft Edge WebView2 Runtime（Win11 自带；Win10 若侧边栏白屏则装一次） |
 | 权限 | 安装阶段需要**管理员**（要写 `HKLM` 注册 COM 加载项） |
 
@@ -150,6 +151,7 @@ office-ai/
 ├─ updater/        自更新器（把内嵌载荷写回 Program Files）
 ├─ watchdog/       进程外崩溃取证（仅排障时启用）
 ├─ engine/         PPT 引擎（make_pptx.py，python-pptx）
+│  └─ python/      便携版 Python 3.12.10（自包含，不依赖系统 Python；仅随 Release 分发）
 ├─ shared/         前后端共用的数据结构
 ├─ install.bat     安装（提权写 HKLM）
 ├─ uninstall.bat   卸载
@@ -171,7 +173,23 @@ dotnet build updater\OfficeAi.Updater.csproj    -c Release
 
 产物在各自 `bin\Release\`。交付目录 `build\` 的组装方式：把 `OfficeAi.Addin.dll`、`OfficeAi.Client.exe`、`OfficeAi.VbaWorker.exe`、三个 `Microsoft.Web.WebView2.*.dll` + `WebView2Loader.dll`、以及 `addin\ui\` 全量文件放进去。
 
-> `build/` 和 `engine/venv/` 不进版本库，只随 Release 的 zip 分发。
+> `build/`、`engine/python/`、`engine/venv/` 不进版本库，只随 Release 的 zip 分发。
+
+### PPT 引擎（便携 Python）
+
+`engine/python/` 是 python.org 的 **embeddable 包**（3.12.10 amd64）+ 手装依赖：
+
+1. 解压 `python-3.12.10-embed-amd64.zip` 到 `engine/python`
+2. 把 `python312._pth` 改成
+   ```
+   python312.zip
+   .
+   Lib\site-packages
+   import site
+   ```
+3. `pip install --target engine/python/Lib/site-packages python-pptx lxml pillow xlsxwriter`
+
+这样整包可搬走，目标机不需要装任何 Python。
 
 ---
 
@@ -179,7 +197,7 @@ dotnet build updater\OfficeAi.Updater.csproj    -c Release
 
 - 只支持 x64 Office，不支持 32 位 Office
 - 只支持 Microsoft Office，不支持 WPS
-- PPT 引擎是内置的独立 Python 环境（约 40 MB），不支持改用系统 Python
+- PPT 引擎用的是包内自带的便携 Python（`engine\python`），不走系统 Python，也不支持替换
 - 崩溃取证（watchdog）默认关闭，日常不要开——它会附加原生调试器
 
 ---

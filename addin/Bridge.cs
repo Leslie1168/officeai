@@ -217,9 +217,12 @@ namespace OfficeAi
 
                 string script = Path.Combine(Path.Combine(TaskPaneHost.InstallRoot(), "engine"),
                                              "make_pptx.py");
-                string python = Path.Combine(Path.Combine(
-                    Path.Combine(TaskPaneHost.InstallRoot(), "engine"), "venv"),
-                    @"Scripts\python.exe");
+                // 优先用随包携带的便携 Python（engine\python，自包含；不依赖目标机装没装 Python）。
+                // 找不到时退回老版本的 venv，保证从 0.5.0/0.5.1 原地升级的旧安装还能生成 PPT。
+                string engineDir = Path.Combine(TaskPaneHost.InstallRoot(), "engine");
+                string python = Path.Combine(Path.Combine(engineDir, "python"), "python.exe");
+                if (!File.Exists(python))
+                    python = Path.Combine(Path.Combine(engineDir, "venv"), @"Scripts\python.exe");
                 if (!File.Exists(script) || !File.Exists(python))
                     return "{\"ok\":false,\"message\":\"PPT 引擎缺失：" + Esc(script) + "\"}";
 

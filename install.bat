@@ -33,8 +33,8 @@ if not exist "%SRC%engine\make_pptx.py" (
     echo   错误：找不到 engine\make_pptx.py
     goto :fail
 )
-if not exist "%SRC%engine\venv\Scripts\python.exe" (
-    echo   错误：找不到 engine\venv，无法生成 PPT
+if not exist "%SRC%engine\python\python.exe" if not exist "%SRC%engine\venv\Scripts\python.exe" (
+    echo   错误：找不到 engine\python 或 engine\venv，无法生成 PPT
     goto :fail
 )
 
